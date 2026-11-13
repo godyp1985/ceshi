@@ -1,0 +1,16 @@
+# System / IDE
+.trae-html-share-packages/
+.trae/
+.vscode/
+.idea/
+.DS_Store
+
+# Build / cache
+node_modules/
+dist/
+.cache/
+*.log
+
+# Env
+.env
+.env.local

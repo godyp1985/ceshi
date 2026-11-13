@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrushForge — AI 智能笔刷生成平台</title>
+<meta name="description" content="用 AI 生成专属数字笔刷。一句话描述，即可获得专业级画笔纹理。" />
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-elev: #111118;
+    --fg: #f5f5f7;
+    --fg-dim: #a1a1a6;
+    --fg-muted: #6e6e73;
+    --accent: #007aff;
+    --accent-2: #5e5ce6;
+    --accent-3: #bf5af2;
+    --border: rgba(255,255,255,0.08);
+    --glass: rgba(255,255,255,0.04);
+    --glass-strong: rgba(255,255,255,0.07);
+    --radius: 20px;
+    --radius-sm: 12px;
+    --maxw: 1200px;
+    --shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  .container {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ===== NAV ===== */
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(10,10,15,0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+  .logo-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: conic-gradient(from 180deg, var(--accent), var(--accent-2), var(--accent-3), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(94,92,230,0.5);
+  }
+  .logo-mark svg { width: 16px; height: 16px; }
+  .nav-links {
+    display: flex;
+    gap: 28px;
+    font-size: 14px;
+    color: var(--fg-dim);
+  }
+  .nav-links a { transition: color .2s; }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .nav-cta a.login-link {
+    font-size: 14px;
+    color: var(--fg-dim);
+    transition: color .2s;
+  }
+  .nav-cta a.login-link:hover { color: var(--fg); }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 980px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--fg);
+    color: var(--bg);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(255,255,255,0.15);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--glass-strong); }
+  .btn-lg { padding: 14px 28px; font-size: 16px; }
+
+  /* ===== HERO ===== */
+  .hero {
+    position: relative;
+    padding: 160px 0 100px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.5;
+    animation: float 12s ease-in-out infinite;
+  }
+  .hero-orb.a {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--accent), transparent 70%);
+    top: -150px; left: 50%; transform: translateX(-50%);
+  }
+  .hero-orb.b {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, var(--accent-3), transparent 70%);
+    bottom: -100px; right: 10%;
+    animation-delay: -4s;
+  }
+  .hero-orb.c {
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, var(--accent-2), transparent 70%);
+    bottom: 50px; left: 8%;
+    animation-delay: -8s;
+  }
+  @keyframes float {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33% { transform: translate(30px,-30px) scale(1.05); }
+    66% { transform: translate(-20px,20px) scale(0.97); }
+  }
+  .hero-orb.b { animation-name: float2; }
+  .hero-orb.c { animation-name: float3; }
+  @keyframes float2 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-40px,30px) scale(1.1); }
+  }
+  @keyframes float3 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(25px,-35px) scale(1.08); }
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 980px;
+    background: var(--glass-strong);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--fg-dim);
+    margin-bottom: 28px;
+    backdrop-filter: blur(10px);
+  }
+  .eyebrow .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #30d158;
+    box-shadow: 0 0 8px #30d158;
+  }
+
+  .hero h1 {
+    font-size: clamp(44px, 7vw, 80px);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    margin-bottom: 24px;
+    background: linear-gradient(180deg, #fff 0%, #a1a1a6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(120deg, var(--accent), var(--accent-3), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p.lead {
+    font-size: clamp(17px, 2vw, 22px);
+    color: var(--fg-dim);
+    max-width: 640px;
+    margin: 0 auto 40px;
+    font-weight: 400;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 70px;
+  }
+
+  /* brush preview canvas */
+  .brush-preview {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+    border: 1px solid var(--border);
+    padding: 28px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(20px);
+  }
+  .brush-preview::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--radius);
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 50%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  .preview-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .preview-toolbar span {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .preview-toolbar span:nth-child(1) { background: #ff5f57; }
+  .preview-toolbar span:nth-child(2) { background: #febc2e; }
+  .preview-toolbar span:nth-child(3) { background: #28c840; }
+  .preview-canvas {
+    height: 320px;
+    border-radius: var(--radius-sm);
+    background:
+      radial-gradient(circle at 20% 30%, rgba(0,122,255,0.25), transparent 40%),
+      radial-gradient(circle at 80% 60%, rgba(191,90,242,0.25), transparent 40%),
+      linear-gradient(135deg, #16161f, #0d0d14);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stroke {
+    position: absolute;
+    border-radius: 999px;
+    opacity: 0;
+    animation: drawStroke 2.5s ease-out infinite;
+  }
+  .stroke.s1 {
+    width: 60%; height: 40px;
+    background: linear-gradient(90deg, transparent, #007aff, transparent);
+    top: 30%; left: 20%;
+    animation-delay: 0s;
+    filter: blur(2px);
+  }
+  .stroke.s2 {
+    width: 50%; height: 28px;
+    background: linear-gradient(90deg, transparent, #bf5af2, transparent);
+    top: 45%; left: 25%;
+    animation-delay: 0.4s;
+    filter: blur(4px);
+    transform: rotate(-3deg);
+  }
+  .stroke.s3 {
+    width: 55%; height: 50px;
+    background: linear-gradient(90deg, transparent, #5e5ce6, transparent);
+    top: 60%; left: 22%;
+    animation-delay: 0.8s;
+    filter: blur(3px);
+    transform: rotate(2deg);
+  }
+  @keyframes drawStroke {
+    0% { opacity: 0; transform: scaleX(0) rotate(var(--r,0)); }
+    30% { opacity: 1; }
+    70% { opacity: 1; transform: scaleX(1) rotate(var(--r,0)); }
+    100% { opacity: 0.15; transform: scaleX(1) rotate(var(--r,0)); }
+  }
+  .preview-prompt {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    font-size: 14px;
+    color: var(--fg-dim);
+  }
+  .preview-prompt code {
+    font-family: "SF Mono", "Menlo", monospace;
+    color: var(--fg);
+    background: none;
+  }
+  .prompt-cursor {
+    display: inline-block;
+    width: 8px; height: 16px;
+    background: var(--accent);
+    margin-left: 4px;
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ===== SECTION ===== */
+  section { padding: 100px 0; }
+  .section-head {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+  .section-head .label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+  .section-head h2 {
+    font-size: clamp(34px, 5vw, 56px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 18px;
+  }
+  .section-head p {
+    font-size: 19px;
+    color: var(--fg-dim);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ===== FEATURES ===== */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .feature {
+    padding: 32px;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+    border: 1px solid var(--border);
+    transition: all .35s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    overflow: hidden;
+  }
+  .feature:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,0.15);
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  }
+  .feature-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, rgba(0,122,255,0.2), rgba(191,90,242,0.2));
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .feature-icon svg { width: 24px; height: 24px; stroke: #fff; }
+  .feature h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .feature p {
+    font-size: 15px;
+    color: var(--fg-dim);
+    line-height: 1.6;
+  }
+
+  /* ===== GALLERY ===== */
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .brush-card {
+    position: relative;
+    border-radius: var(--radius);
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    transition: all .35s cubic-bezier(.4,0,.2,1);
+    cursor: pointer;
+  }
+  .brush-card:hover {
+    transform: translateY(-4px) scale(1.01);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .brush-card .bcanvas {
+    position: absolute; inset: 0;
+  }
+  .brush-card:nth-child(1) .bcanvas {
+    background:
+      repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,122,255,0.6) 4px, rgba(0,122,255,0.6) 6px),
+      radial-gradient(circle at 50% 50%, #1a1a2e, #0a0a0f);
+  }
+  .brush-card:nth-child(2) .bcanvas {
+    background:
+      radial-gradient(circle at 30% 40%, rgba(191,90,242,0.5), transparent 50%),
+      radial-gradient(circle at 70% 60%, rgba(255,45,85,0.4), transparent 50%),
+      linear-gradient(135deg, #1a0f2e, #0f0a1e);
+  }
+  .brush-card:nth-child(3) .bcanvas {
+    background:
+      repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 8px, rgba(48,209,88,0.4) 8px, rgba(48,209,88,0.4) 9px),
+      linear-gradient(135deg, #0f1e14, #0a140f);
+  }
+  .brush-card:nth-child(4) .bcanvas {
+    background:
+      conic-gradient(from 0deg at 50% 50%, rgba(255,159,10,0.6), rgba(255,45,85,0.6), rgba(191,90,242,0.6), rgba(255,159,10,0.6)),
+      #1a0f14;
+    filter: blur(1px);
+  }
+  .brush-card:nth-child(5) .bcanvas {
+    background:
+      linear-gradient(45deg, rgba(0,122,255,0.4) 25%, transparent 25%, transparent 75%, rgba(0,122,255,0.4) 75%),
+      linear-gradient(45deg, rgba(0,122,255,0.4) 25%, transparent 25%, transparent 75%, rgba(0,122,255,0.4) 75%),
+      #0a0f1a;
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+  }
+  .brush-card:nth-child(6) .bcanvas {
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(94,92,230,0.6), transparent 60%),
+      repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.05) 3px, rgba(255,255,255,0.05) 4px),
+      #0d0d1a;
+  }
+  .brush-overlay {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 20px;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.85));
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .brush-overlay .name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .brush-overlay .tag {
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+  .brush-card .like {
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .brush-card:hover .like { opacity: 1; }
+
+  /* ===== HOW IT WORKS ===== */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    counter-reset: step;
+  }
+  .step {
+    text-align: center;
+    padding: 32px 24px;
+    position: relative;
+  }
+  .step-num {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 8px 24px rgba(0,122,255,0.3);
+  }
+  .step h4 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .step p {
+    font-size: 14px;
+    color: var(--fg-dim);
+    line-height: 1.6;
+  }
+
+  /* ===== STATS ===== */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 24px;
+    padding: 48px;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .stat .num {
+    font-size: clamp(36px, 5vw, 52px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--accent), var(--accent-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat .lbl {
+    font-size: 14px;
+    color: var(--fg-dim);
+    margin-top: 6px;
+  }
+
+  /* ===== CTA ===== */
+  .cta {
+    text-align: center;
+    padding: 100px 0 120px;
+    position: relative;
+  }
+  .cta h2 {
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin-bottom: 20px;
+  }
+  .cta p {
+    font-size: 20px;
+    color: var(--fg-dim);
+    margin-bottom: 36px;
+  }
+
+  /* ===== FOOTER ===== */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 50px 0 32px;
+    color: var(--fg-muted);
+    font-size: 13px;
+  }
+  .footer-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+  .footer-links a:hover { color: var(--fg); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 720px) {
+    .nav-links { display: none; }
+    .hero { padding: 120px 0 60px; }
+    section { padding: 70px 0; }
+    .preview-canvas { height: 220px; }
+    .stats { padding: 32px 20px; }
+  }
+
+  /* reveal */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .8s ease, transform .8s cubic-bezier(.4,0,.2,1);
+  }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <span class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M4 20c4-1 12-9 14-14a1 1 0 0 0-1-1c-5 2-13 10-14 14a1 1 0 0 0 1 1z"/><circle cx="18" cy="6" r="1.5"/></svg>
+      </span>
+      BrushForge
+    </a>
+    <div class="nav-links">
+      <a href="#features">产品</a>
+      <a href="#gallery">笔刷库</a>
+      <a href="#how">工作流</a>
+      <a href="#pricing">定价</a>
+    </div>
+    <div class="nav-cta">
+      <a href="login.html" class="login-link">登录</a>
+      <a href="#" class="btn btn-primary">免费开始</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-bg">
+    <div class="hero-orb a"></div>
+    <div class="hero-orb b"></div>
+    <div class="hero-orb c"></div>
+  </div>
+  <div class="container">
+    <span class="eyebrow"><span class="dot"></span> BrushForge 2.0 现已上线</span>
+    <h1>用一句话，<br>生成属于你的<span class="grad">专属笔刷</span></h1>
+    <p class="lead">AI 驱动的数字笔刷生成引擎。描述你想要的纹理、笔触与情绪，即刻获得可导入 Procreate、Photoshop 的专业画笔。</p>
+    <div class="hero-actions">
+      <a href="#" class="btn btn-primary btn-lg">立即创作</a>
+      <a href="#gallery" class="btn btn-ghost btn-lg">浏览笔刷库</a>
+    </div>
+
+    <!-- Brush preview mock -->
+    <div class="brush-preview reveal">
+      <div class="preview-toolbar"><span></span><span></span><span></span></div>
+      <div class="preview-canvas">
+        <div class="stroke s1"></div>
+        <div class="stroke s2"></div>
+        <div class="stroke s3"></div>
+      </div>
+      <div class="preview-prompt">
+        <span>提示词：</span>
+        <code>水彩晕染 · 柔软边缘 · 蓝紫色调 · 颗粒纹理</code>
+        <span class="prompt-cursor"></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="label">核心能力</div>
+      <h2>为创作者打造的<br>AI 笔刷引擎</h2>
+      <p>从自然媒材到数字特效，我们的模型理解每一种笔触的物理特性。</p>
+    </div>
+    <div class="features">
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+        </div>
+        <h3>语义生成</h3>
+        <p>输入自然语言描述，AI 自动解析纹理、压力、形状与颜色，生成高保真笔刷预设。</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l4-4 4 4 4-8 4 4"/><circle cx="18" cy="7" r="1.5"/></svg>
+        </div>
+        <h3>参数可调</h3>
+        <p>大小、不透明度、间距、散射、角度抖动……20+ 参数实时可视化微调，所见即所得。</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <h3>多平台导出</h3>
+        <p>一键导出 .brush、.ABR、.TPL 格式，原生支持 Procreate、Photoshop、Clip Studio。</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>3 秒出图</h3>
+        <p>边缘推理加速，平均生成时间 3.2 秒。无需排队，即时预览，批量导出。</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5M17 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM7 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+        </div>
+        <h3>社区共享</h3>
+        <p>上传你的笔刷到公共画廊，获取点赞与下载数据，与全球创作者共建笔刷生态。</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 4 4 .5-3 3 .5 4L12 16l-3.5 1.5L9 14l-3-3 4-.5z"/></svg>
+        </div>
+        <h3>风格学习</h3>
+        <p>上传参考图，AI 提取其笔触特征并复刻到新笔刷中，延续你的个人画风。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GALLERY -->
+<section id="gallery" style="background: linear-gradient(180deg, transparent, rgba(255,255,255,0.02), transparent);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="label">笔刷画廊</div>
+      <h2>社区正在用什么</h2>
+      <p>来自全球创作者的 AI 生成笔刷，点击即可预览与下载。</p>
+    </div>
+    <div class="gallery">
+      <div class="brush-card reveal">
+        <div class="bcanvas"></div>
+        <div class="like"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="brush-overlay"><div><div class="name">霓虹笔触</div><div class="tag">@lin_art</div></div></div>
+      </div>
+      <div class="brush-card reveal">
+        <div class="bcanvas"></div>
+        <div class="like"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="brush-overlay"><div><div class="name">水彩晕染</div><div class="tag">@mika_draws</div></div></div>
+      </div>
+      <div class="brush-card reveal">
+        <div class="bcanvas"></div>
+        <div class="like"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="brush-overlay"><div><div class="name">网格纹理</div><div class="tag">@techbrush</div></div></div>
+      </div>
+      <div class="brush-card reveal">
+        <div class="bcanvas"></div>
+        <div class="like"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="brush-overlay"><div><div class="name">极光渐变</div><div class="tag">@north.studio</div></div></div>
+      </div>
+      <div class="brush-card reveal">
+        <div class="bcanvas"></div>
+        <div class="like"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="brush-overlay"><div><div class="name">像素颗粒</div><div class="tag">@retro8bit</div></div></div>
+      </div>
+      <div class="brush-card reveal">
+        <div class="bcanvas"></div>
+        <div class="like"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="brush-overlay"><div><div class="name">星河漩涡</div><div class="tag">@cosmic.ink</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="label">工作流</div>
+      <h2>三步，从零到专属笔刷</h2>
+      <p>无需专业知识，AI 帮你完成所有技术细节。</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <h4>描述你的想法</h4>
+        <p>用一句话或上传参考图，告诉 AI 你想要的笔刷质感与风格。</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <h4>AI 实时生成</h4>
+        <p>3 秒内生成可预览的笔刷效果，支持多种变体供你选择。</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <h4>导出并使用</h4>
+        <p>微调参数后导出到你喜欢的绘图软件，立即投入创作。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section>
+  <div class="container">
+    <div class="stats reveal">
+      <div class="stat"><div class="num" data-count="1200000">0</div><div class="lbl">累计生成笔刷</div></div>
+      <div class="stat"><div class="num" data-count="85000">0</div><div class="lbl">活跃创作者</div></div>
+      <div class="stat"><div class="num" data-count="3.2" data-decimal="1">0</div><div class="lbl">平均生成秒数</div></div>
+      <div class="stat"><div class="num" data-count="99.9" data-decimal="1">0</div><div class="lbl">服务可用率 %</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="container">
+    <h2 class="reveal">准备好创造<br>你的下一支笔刷了吗？</h2>
+    <p class="reveal">免费注册，立即解锁 50 次 AI 生成额度。</p>
+    <div class="hero-actions reveal">
+      <a href="login.html" class="btn btn-primary btn-lg">免费开始</a>
+      <a href="#" class="btn btn-ghost btn-lg">查看演示</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div>© 2026 BrushForge. 保留所有权利。</div>
+      <div class="footer-links">
+        <a href="#">关于</a>
+        <a href="#">隐私</a>
+        <a href="#">条款</a>
+        <a href="#">联系</a>
+        <a href="login.html">管理后台</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // count up
+  const countIO = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target;
+        const target = parseFloat(el.dataset.count);
+        const dec = parseInt(el.dataset.decimal || '0');
+        const dur = 1600;
+        const start = performance.now();
+        function tick(now) {
+          const p = Math.min((now - start) / dur, 1);
+          const eased = 1 - Math.pow(1 - p, 3);
+          const val = target * eased;
+          el.textContent = dec ? val.toFixed(dec) : Math.floor(val).toLocaleString();
+          if (p < 1) requestAnimationFrame(tick);
+          else el.textContent = dec ? target.toFixed(dec) : target.toLocaleString();
+        }
+        requestAnimationFrame(tick);
+        countIO.unobserve(el);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
+</script>
+</body>
+</html>
